@@ -1,0 +1,215 @@
+---
+title: "Assignment 2"
+author: "Data Science for Biomedical Informatics (BMIN503/EPID600)"
+output: 
+  html_document:
+    toc: false 
+    depth: 3 
+    theme: paper 
+    highlight: tango
+---
+    
+```{r set-options, echo=FALSE, cache=FALSE}
+options(width = 400)
+```    
+
+***
+
+### Instructions
+
+- Download the Rmd version of this file
+- Complete the questions below in RStudio using the Rmd file as a template 
+- Replace text in brackets with your answers. (There is no need to keep the brackets).
+- Save the Rmd document as Assignment2_*YOUR LAST NAME*.Rmd
+- Create an HTML version using knitr
+- Turn in completed Assignment2_*YOUR LAST NAME*.html file in Canvas under Assignments -> Assignment 2
+- Your assignment **must** be in html format or it will not be graded
+- Grades will be assigned according to point scheme below and computed as a percentage of total possible points
+- Lateness policy: If an urgent and unforseen circumstance comes up and you need an extension to turn in an assignment, please contact Blanca, Erin, and/or Emma as soon as possible. Unless there is an arrangement in place, late assignments will be scored as follows: 
+    - 25% of total score if 1 day late
+    - 50% of total score if 2 days late
+    - 75%  of total score if 3 days late
+    - Assignment will not be graded if 4 or more days late
+- DUE DATE: 9/19/19 11:59pm
+
+### R Basics
+
+1. Create a matrix `m` containing the following columns (in this order): *(2 points)* 
+    + Column 1: Numbers 1 thru 40
+    + Column 2: Even numbers 1 thru 80
+    + Column 3: All Zeros
+    + Column 4: Entries of column 1 times those of column 2
+
+
+```{r, eval = TRUE}
+#less efficient way to do it that I came up with: 
+v1 <- matrix(1:40)
+v2 <- matrix(seq(2, 80, 2))
+v3 <- matrix(0, nrow=40, ncol=1)
+v4 <- matrix(v1*v2)
+m <- cbind(v1, v2, v3, v4)
+m
+
+#better way to do it from answer key: 
+m <- cbind(1:40, seq(2, 80, 2), 0)
+m <- cbind(m, m[,1]*m[,2])
+```
+
+
+Show the header of `m`. Add a 5th column containing repeated instances of the letters `a` and `b` (i.e. `a`, `b`, `a`, `b`,...). Show the header of `m` again. What changed? *(2 points)*
+    
+```{r, eval = TRUE}
+head(m)
+v5 <- matrix(rep(c('a', 'b'), 20))
+m <- cbind(m, v5)
+head(m)
+
+#better way to do it from answer key: 
+head(m)
+m <- cbind(m, c('a','b'))
+head(m) 
+```
+
+>By adding the characters to the matrix, R changed all of the items in the matrix to characters because data types in matrices must be homogenous. 
+
+2. Create a data frame m2 based on the matrix m (i.e. convert m to a data frame, rather than define m2 from scratch using the individual columns). Label the columns as "Index", "EvenNums", "Zeroes", "V4", and "AB" in that order. Get the class of each column. Convert the entries that should be numerical back to numbers (i.e, all except "AB"). Hint: this can be tricky, so be sure to check your answer. Show the class of each column again. *(2 points)*
+
+
+```{r, eval = TRUE}
+#my old incorrect method
+library(dplyr)
+m2 <- data.frame(m)
+head(m2)
+names(m2)
+m2 <- m2 %>% rename(Index = X1, EvenNums = X2, Zeroes = X3, V4 = X4, AB = X5)
+head(m2)
+sapply(m2, class)
+m2$Index <- as.numeric(m2$Index)
+m2$EvenNums <- as.numeric(m2$EvenNums)
+m2$Zeroes <- as.numeric(m2$Zeroes)
+m2$V4 <- as.numeric(m2$V4)
+sapply(m2, class)
+
+#correct approach from answer key
+m2 <- data.frame(m)
+names(m2) <- c("Index", "EvenNums", "Zeros", "V4", "AB")
+head(m2)
+sapply(m2, class)
+m2[, c(1:4)] <- sapply(m2[, c(1:4)], function(x) as.numeric(levels(x)[x]))
+head(m2)
+sapply(m2, class)
+```
+
+3. Write a _for loop_ to create a list `L` where each entry `i` is a list of the "EvenNums" and "AB" corresponding to m2[i, ]. 
+
+Show the contents of the 30th element of this list. Show two ways in which you can retrieve the contents of the 2nd element of the 30th element of L (hint: make sure the list entries have names so you can use double brackets and $). *(2 points)*
+
+
+```{r, eval = TRUE}
+L <- list() #initialize list
+i <- 0
+for(item in m2[,2:3]) {
+  i <- i+1
+  L[[i]] <- item
+}
+str(L)
+L
+
+#correct method from key:
+L <- NULL
+for(i in seq_along(m2$Index)) {
+    L[[i]] <- c(m2[i, c("EvenNums", "AB")])  
+}
+L[[30]]
+L[[30]][[2]]
+L[[30]]$AB
+
+```
+
+4. Write a function called `my.f` that returns x if x is even, or 2 times x if x is odd. Account for the fact that a user may not provide an integer by having a condition that displays a text message with a warning when x is not an integer. *(2 points)*
+
+```{r, eval = TRUE}
+my.f <- function(x) {
+if ((!identical(class(x), "integer"))) {
+print("nope not an integer")
+} else if ((x %% 2 == 0)&(identical(class(x), "integer"))) {
+x
+} else if ((!(x %% 2 == 0))&(identical(class(x), "integer"))) {
+x*2
+}
+}
+
+#answer from key:
+my.f <- function(x){
+    if (is.integer(x)) { 
+        if (identical(x%%2,0)) {
+            x
+        } else if (identical(x%%2,1)) {
+            2*x
+        }
+    } else {
+        print("A non-integer was provided.")
+    }
+}
+my.f(3)
+```
+> Show output of the following commands:
+
+```{r, eval = TRUE}
+my.f(3)
+
+my.f(3L)
+ 
+my.f(6L)
+
+my.f("two")
+```
+
+
+### R Data Manipulation
+5. There is a CSV file containing a subset of the 2007-2008 NHANES data [here](https://raw.githubusercontent.com/HimesGroup/BMIN503/master/DataFiles/NHANES_2007to2008.csv) with a corresponding [data dictionary](https://github.com/HimesGroup/BMIN503/blob/master/DataFiles/NHANES_2007to2008_DataDictionary.md). Read in the *raw* data file. *(2 points)*
+
+> Replace this text with a chunk of R code that loads the dataset
+
+```{r, eval = TRUE}
+data <- read.csv("https://raw.githubusercontent.com/HimesGroup/BMIN503/master/DataFiles/NHANES_2007to2008.csv")
+head(data, n=15)
+data <- dplyr::rename(data, id = SEQN, gender = RIAGENDR, age = RIDAGEYR, ethnicity = RIDRETH1, education = DMDEDUC2, income = INDHHIN2, healthcare = HUQ040, wheezing = RDQ070, asthma = MCQ010, voc = WTSVOC2Y, spirometry1 = SPXNFVC, spirometry2 = SPXNFEV1)
+
+
+```
+
+Now, using some of the R functions discussed in class, answer the following questions by inserting code below each bullet to provide the answer directly. *(10 points)*
+
+* How many subjects are in the dataset and what data type is in each column?
+```{r, eval = TRUE}
+str(data)
+```
+* How many missing values are there for each variable?
+```{r, eval = TRUE}
+summary(data)
+
+#appropriate method from key:
+sapply(data, function(x) length(x[is.na(x)]))
+```
+* How many male and female subjects are there?
+```{r, eval = TRUE}
+data <- mutate(data, gender = factor(gender, levels = c(1, 2), labels = c("male", "female")), ethnicity = factor(ethnicity, levels = c(1, 2, 3, 4, 5), labels = c("mex amer", "hispan", "nhwhite", "nhblack", "other")), education = factor(education, levels = c(1, 2, 3, 4, 5, 77, 9), labels = c("<9th", "9-11th", "highschool", "somcollege", "college", "refused", "dk")), income = factor(income, levels = c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 77, 99), labels = c("$0-4,999", "$5,000-9,999", "$10,000-14,999", "$15,000-19,999", "$20,000-24,999", "$25,000-34,999", "$35,000-44,999", "$45,000-54,999", "$55,000-64,999", "$65,000-74,999", "Over $20,000", "Under $20,000", "$75,000-99,999", "$100,000 and over", "refused", "dk")), healthcare = factor(healthcare, levels = c(1, 2, 3, 4, 5, 7, 9), labels = c("clinic or health center", "doctors office", "hospital emergency room", "hospital outpatient dept", "some other place", "refused", "dk")))
+table(data$gender)
+```
+* What is the most frequent answer to the question regarding the type of place subjects most often go for healthcare?
+```{r, eval = TRUE}
+table(data$healthcare)
+```
+* How many adult subjects are there (with adult defined as age of 18 or greater)?
+```{r, eval = TRUE}
+data.adults <- data[data$age >= 18, ]
+count(data.adults)
+data <- mutate(data, age.cutoff = factor(age >= 18, labels = c("child", "adult")))
+head(data)
+table(data$age.cutoff)
+
+#correct code: 
+length(data$RIDAGEYR[data$RIDAGEYR>=18]) 
+#just select out the adults, don't need to make a whole new variable. 
+```

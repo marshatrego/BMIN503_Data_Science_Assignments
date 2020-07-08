@@ -1,0 +1,297 @@
+---
+title: "Assignment 3"
+author: "Data Science for Biomedical Informatics (BMIN503/EPID600)"
+output: 
+  html_document:
+    toc: false 
+    depth: 3 
+    theme: paper 
+    highlight: tango
+---
+    
+```{r set-options, echo=FALSE, cache=FALSE}
+options(width = 400)
+
+```
+
+```{r, eval=FALSE}
+#installing packages and libraries
+install.packages("GGally")
+install.packages("pROC")
+install.packages("PRROC")
+
+```
+***
+
+### Instructions
+
+- Download the Rmd version of this file
+- Complete the questions below in RStudio using the Rmd file as a template 
+- Replace text in brackets with your answers. (There is no need to keep the brackets).
+- Save the Rmd document as Assignment3_*YOUR LAST NAME*.Rmd
+- Create an HTML version using knitr
+- Turn in completed Assignment3_*YOUR LAST NAME*.html file in Canvas under Assignments -> Assignment 3
+- Your assignment **must** be in html format or it will not be graded
+- Grades will be assigned according to point scheme below and computed as a percentage of total possible points
+- Lateness policy: If an urgent and unforseen circumstance comes up and you need an extension to turn in an assignment, please contact Blanca, Erin, and/or Emma as soon as possible. Unless there is an arrangement in place, late assignments will be scored as follows: 
+    - 25% of total score if 1 day late
+    - 50% of total score if 2 days late
+    - 75%  of total score if 3 days late
+    - Assignment will not be graded if 4 or more days late
+- DUE DATE: 10/4/19
+
+
+### Final Project - Repository
+
+1. Fork the [Final Project Repository](https://github.com/HimesGroup/BMIN503_Final_Project) to your GitHub account, and then pull this repository as a new project on your local computer by using the _Project_ menu in the upper-right-hand corner of RStudio, selecting a _New Project_, creating it via _Version Control_ -> _Git_ -> and entering your GitHub repository (remember to append `.git` to the copied `url`). You can now work on your final project from your computer, and easily push updates to your GitHub account, where the final version will be saved. A _Git_ tab will be available that you can use to _Pull_, _Commit_, and _Push_ changes between your local version and that on GitHub without having to use the command line. *(1 point for forking repository)*
+
+2. In 2-3 sentences, describe what question you will answer for your final project and what data will you use. There is a list of public data sources at the bottom of the [Optional Reading](https://github.com/HimesGroup/BMIN503/blob/master/Module1_Optional_Reading.Rmd) document that you can look through if you are having difficulty identifying public data. If you'd like help to pick a question, please let Blanca know soon. *(2 points)*
+
+> I will use NHANES data to explore diet quality among populations with diet-sensitive chronic diseases, including heart disease, cancer, and diabetes as compared to populations without a diagnosis. I will use the medical conditions data from the questionnaire component and the dietary data along with self-reported measures such as self-rated diet quality and weight loss goals, as well as demographic and food insecurity data. Analyses will include descriptive statistics and bivariate analyses, then a regression to answer the question, "how is diagnosis with a diet-sensitive chronic disease related to dietary behavior?" with the underlying goal that findings could influence nutrition counseling and assistance for those with chronic disease. 
+
+3. What three faculty/staff (name, title, division/department) have you met or are planning to meet to discuss your project? *(2 points)*
+
+> I will meet with 1.) [Dr. Christina Roberto]("http://www.peachlab.org/about/who/"), Assistant Professor of Medical Ethics and Health Policy in the Perelman School of Medicine and Director of the Psychology of Eating and Consumer Health (PEACH) Lab, 2.) [Dr. Laura Gibson]("https://www.med.upenn.edu/apps/faculty/index.php/g275/p8309651"), Research Assistant Professor of Medical Ethics and Health Policy and Deputy Director of the PEACH Lab, and 3.) [Helen Yan]("https://chibe.upenn.edu/faculty-members/jiali-helen-yan-ms/"), Statistical Analyst in the Center for Health Incentives and Behavioral Economics. 
+
+### Cleaning and Transforming data, Descriptive Statistics and Regression
+4. Install and load the `nycflights13` package to do this problem. This package includes the [flights](https://www.rdocumentation.org/packages/nycflights13/versions/1.0.0/topics/flights) dataset, which contains information on 336,776 flights that departed from New York City in 2013 and is often used to learn `dplyr` commands. If you need more guided practice with `dplyr`, beyond what we did in class, you can go through this [vignette](https://cran.r-project.org/web/packages/dplyr/vignettes/dplyr.html). Use `dplyr` to answer the following questions by inserting code below each bullet to provide the answer directly. *(10 points)*
+
+```{r, eval=TRUE, echo = FALSE, warning = FALSE}
+library(GGally)
+library(ggplot2)
+library(nycflights13)
+library(dplyr)
+dim(flights)
+str(flights)
+flights
+
+```
+
+
+* Which airports are included in the dataset as having flights originating from NYC? Which airport had the most departing flights?
+
+> Newark, JFK, and La Guardia all have flights originating in NYC. Newark has the most flights with 120835.
+    
+```{r, eval=TRUE}
+flights <- mutate(flights, origin = factor(origin, levels = c("EWR", "JFK", "LGA"), labels = c("Newark", "JFK", "La Guardia")))
+
+originTest <- group_by(flights, origin)
+flightOrigins <- summarise(originTest, flights = n()) %>% arrange()
+flightOrigins
+
+
+```
+
+* Of the flights that departed in the second half of the year from La Guardia (LGA), how many unique tailnum contained "SW" or "NW"?
+
+> 157 unique tailnums contained "SW" or "NW" in flights that departed from La Guardia in the second half of the year.
+    
+```{r}
+
+tailnum1 <- flights %>%
+  filter(origin == "La Guardia", month >6, (grepl("SW", tailnum) | grepl("NW", tailnum))) %>%
+  summarise(n_distinct(tailnum))
+tailnum1
+
+
+# old code and notes please disregard
+#flights1 <- filter(flights, origin == "La Guardia")
+#tailnumtest <- filter(flights1, month >6) 
+#filter(tailnumtest, grepl("SW", tailnum) | grepl("NW", tailnum))
+
+#use %in% code to select month, could select range of month
+#use grep to get "SW" and "NW", search "filter partial database on a string that's part of a variable"
+#better to pipe it together to not make middle level variables
+
+```
+
+* Which destination(s) had only one flight in any given month?
+    
+```{r, eval=TRUE}
+flights %>%
+  dplyr::group_by(month, dest) %>%
+  dplyr::summarise(count = n()) %>%
+  dplyr::filter(count ==1)
+
+```
+
+* Was the mean departure delay time per carrier related to the total number of flights per carrier? The answer should show a plot and use one sentence to address this question qualitatively.
+
+> The mean departure delay time per carrier was not related to the total number of flights per carrier, as shown by the scatter plot that does not show a clear pattern and the line with a slope very close to 0.
+    
+```{r}
+#first split dataset into individual carriers
+#then summarise each carrier by counting the number of flights (count = n()) and computing average departure delay
+
+bycarrier <- group_by(flights, carrier)
+
+departdelay <- summarise(bycarrier, count = n(), delay = mean(dep_delay, na.rm = TRUE))
+
+library(ggplot2)
+ggplot(departdelay, aes(delay, count)) + geom_point() + geom_smooth(method = 'lm', se = TRUE)
+
+```
+
+* Was the mean delay time for a given time of departure related to the time of departure? Does this relationship change by the airport where flights originated from? The answer should show a plot and use two sentences to address these questions qualitatively.
+
+```{r, eval = TRUE}
+
+xxmeandelay <- flights %>%
+  group_by(dep_time)
+
+meandelay <- summarise(xxmeandelay, xxdelay = mean(dep_delay, na.rm = TRUE))
+
+ggplot(meandelay, aes(dep_time, xxdelay)) + geom_point()
+
+```
+
+
+5. Load the `MASS` package, which contains the  [birthwt](https://stat.ethz.ch/R-manual/R-devel/library/MASS/html/birthwt.html) dataset, to answer the following questions. We will work toward identifying variables that are associated with low birthweight, both as a dichotomous outcome and a continuous one. HINT: The `MASS` package contains a `select` command that may compete with that from `dplyr`. If you have `dplyr` and `MASS` loaded simultaneously and want to use `dplyr`'s `select`, do it explicitly. For example, use `dplyr::select` rather than `select`. *(9 points)*
+
+```{r, eval = TRUE}
+library(MASS)
+```
+
+* Take a look at the `birthwt` dataset (e.g., using `str()`) to get a sense of variables it contains. We will use the variables `low` and `bwt` as outcomes and `age`, `race`, `smoke`, `ht`, `ptl` as predictors. Create a new dataset `birthwt.clean` containing only the variables we are interested in, where (1) the variables `low`, `ht`, and `ptl` are renamed `low.birth.wt`, `hypertension`, and `prem.labor`, respectively, (2) all integer categories (i.e., `low.birth.wt`, `race`, `smoke`, `hypertension`, `prem.labor`) are converted to factors with intuitive labels, (3) the `race` variable does not include the `other` category, and (4) the `ptl` variable is dichotomized into two levels based on a positive or negative history of previous premature labor. 
+```{r}
+
+
+str(birthwt)
+birthwt <- birthwt
+
+
+#the variables `low`, `ht`, and `ptl` are renamed `low.birth.wt`, `hypertension`, and `prem.labor`, respectively, 
+birthwt.clean <- dplyr::select(birthwt, low.birth.wt = low, bwt, age, race, smoke, hypertension = ht, prem.labor = ptl)
+
+str(birthwt.clean)
+
+#all integer categories (i.e., `low.birth.wt`, `race`, `smoke`, `hypertension`, `prem.labor`) are converted to factors with intuitive labels,
+birthwt.clean <- mutate(birthwt.clean, low.birth.wt = factor(low.birth.wt, levels = c(0,1), labels = c("greaterthan2.5", "lessthan2.5")))
+
+birthwt.clean <- mutate(birthwt.clean, race = factor(race, levels = c(1,2), labels = c("white", "black")))
+
+birthwt.clean <- mutate(birthwt.clean, smoke = factor(smoke, levels = c(0,1), labels = c("No", "Yes")))
+
+birthwt.clean <- mutate(birthwt.clean, hypertension = factor(hypertension, levels = c(0,1), labels = c("No", "Yes")))
+
+#number of previous premature labors = 0 = negative history of premature labor, all others = positive history of premature labor
+birthwt.clean <- mutate(birthwt.clean, prem.labor = factor(prem.labor, levels = c(0,1,2,3), labels = c("negative", "positive", "positive", "positive")))
+
+#the `race` variable does not include the `other` category,
+birthwt.clean <- na.omit(birthwt.clean)
+
+#the `ptl` variable is dichotomized into two levels based on a positive or negative history of previous premature labor. See above.
+birthwt.clean
+
+```
+
+* Perform bivariate analysis for the resulting `age` and `smoke` variables you created as predictors and `low.birth.wt` and `bwt` as outcomes. Include appropriate plots that look at the pairwise relationships between the outcomes and each predictor and fit appropriate regression models between each outcome and each predictor individually. Are there differences between the results for each outcome?
+
+> Yes, there are differences in the results for each outcome. smoking is significantly related to the binary low birth weight variable and to the continuous birth weight variable, while age is not significantly related. 
+
+```{r, eval = TRUE}
+# Scatter plot for age x birthweight
+ggplot(birthwt.clean, aes(x=age, y=bwt)) + geom_point() + geom_smooth(method="lm")
+
+# "A quick and easy function to plot lm() results with ggplot2 in R" from https://sejohnston.com/2012/08/09/a-quick-and-easy-function-to-plot-lm-results-in-r/ to describe line going through birthweight and age scatterplot. 
+ggplotRegression <- function (fit) {
+  require(ggplot2)
+  ggplot(fit$model, aes_string(x = names(fit$model)[2], y = names(fit$model)[1])) + 
+  geom_point() +
+  stat_smooth(method = "lm", col = "blue") +
+  labs(title = paste("Adj R2 = ",signif(summary(fit)$adj.r.squared, 5),
+                     "Intercept =",signif(fit$coef[[1]],5 ),
+                     " Slope =",signif(fit$coef[[2]], 5),
+                     " P =",signif(summary(fit)$coef[2,4], 5)))
+}
+
+fit1 <- lm(bwt ~ age, data = birthwt.clean)
+ggplotRegression(fit1)
+
+#testing for significance of relationship between low birth weight (binary) and smoking status (binary)
+chisq.test(birthwt.clean$low.birth.wt, birthwt.clean$smoke)
+#p-value os 0.0035, indicating a significant relationship. 
+#Bar plot comparing low birth weight (binary) and smoking status(binary)
+ggplot(birthwt.clean, aes(smoke, fill=factor(low.birth.wt))) + geom_bar(position = "dodge")
+
+
+# visualizing age and lowbirthweight
+bwhisto <- birthwt.clean %>%
+  filter(low.birth.wt =="greaterthan2.5") %>%
+  ggplot(aes(age)) +
+  geom_histogram(aes(y = ..density..), breaks = seq(0, 80, 1), color = "red", fill = "red", alpha = 0.7) +
+    geom_density(color = "darkgreen")
+bwhisto2 <- birthwt.clean %>%
+  filter(low.birth.wt =="lessthan2.5") %>%
+  ggplot(aes(age)) +
+  geom_histogram(aes(y = ..density..), breaks = seq(0, 80, 1), color = "pink", fill = "pink", alpha = 0.7) +
+    geom_density(color = "darkgreen")
+bwhisto
+bwhisto2
+
+# visualizing smoke and bwt
+bwhisto3 <- birthwt.clean %>%
+  filter(smoke =="Yes") %>%
+  ggplot(aes(bwt)) +
+  geom_histogram(breaks = seq(800, 5000, 80), color = "red", fill = "red", alpha = 0.7)
+bwhisto4 <- birthwt.clean %>%
+  filter(smoke =="No") %>%
+  ggplot(aes(bwt)) +
+  geom_histogram(breaks = seq(800, 5000, 80), color = "pink", fill = "pink", alpha = 0.7)
+bwhisto3
+bwhisto4
+
+#regression to explore relationship between smoking and bwt
+bwt.glm.sm <- glm(smoke ~ ., data = birthwt.clean, family = binomial(logit))
+summary(bwt.glm.sm)
+#p value is 0.00789 , relationship is significant
+
+#regression to explore relationship between age and low.birth.wt
+bwt.glm.lbw <- glm(low.birth.wt ~ ., data = birthwt.clean, family = binomial(logit))
+summary(bwt.glm.lbw)
+#p value is 1.000 no relationship
+
+
+#s for the resulting `age` and `smoke` variables you created as predictors and `low.birth.wt` and `bwt` as outcomes. Include appropriate plots that look at the pairwise relationships between the outcomes and each predictor and fit appropriate regression models between each outcome and each predictor individually. Are there differences between the results for each outcome?
+
+#summary
+#age-low.birth.wt
+#p value is 1.000 no relationship
+#age-bwt
+#p value is 0.18552 no relationship
+#smoke-low.birth.wt
+##pvalue is 0.0035, indicating a significant relationship.
+#smoke-bwt
+#p value is 0.00789 , relationship is significant
+
+
+```
+
+```{r, eval=TRUE}
+
+# testing out ggpairs function for low.birth.wt and bwt with age, and smoke
+ggpairs(birthwt.clean, mapping = aes(col = low.birth.wt), columns = c("low.birth.wt", "bwt", "age", "smoke"))
+
+```
+
+* Create multivariable regression models for `low.birth.wt` and `bwt` using `age`, `race`, `smoke`, `hypertension`, and `prem.labor` as predictors. What factors are significantly associated with the birth weight outcomes
+
+> Race = black and smoking = yes are significant predictors of birthweight in the linear model when considering age, race, smoking status, hypertension status, and premature labor. Race=black and smoking = yes and premature labor are significant predictors of low birth weight in the logistic model when considering age, race, smoking status, hypertension status, and premature labor
+
+```{r}
+
+
+birthwt.lm.bwt <- lm(data = birthwt.clean, bwt ~ age + race + smoke + hypertension + prem.labor)
+
+
+birthwt.glm.low.birth.wt <- glm(data = birthwt.clean, low.birth.wt ~ age + race + smoke + hypertension + prem.labor, family = binomial(logit))
+
+summary(birthwt.lm.bwt)
+summary(birthwt.glm.low.birth.wt)
+
+
+```
+
+
+
+

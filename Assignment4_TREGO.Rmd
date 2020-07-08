@@ -1,0 +1,239 @@
+---
+title: "Assignment 4"
+author: "Data Science for Biomedical Informatics (BMIN503/EPID600)"
+output:
+  html_document:
+    toc: false 
+    depth: 3 
+    theme: paper 
+    highlight: tango
+---
+
+```{r set-options, echo=FALSE, cache=FALSE}
+options(width = 400)
+```   
+
+### Instructions
+
+- Download the Rmd version of this file
+- Complete the questions below in RStudio using the Rmd file as a template 
+- Replace text in brackets with your answers. (There is no need to keep the brackets).
+- Save the Rmd document as Assignment4_*YOUR LAST NAME*.Rmd
+- Create an HTML version using knitr
+- Turn in completed Assignment4_*YOUR LAST NAME*.html file in Canvas under Assignments -> Assignment 4
+- Your assignment **must** be in html format or it will not be graded
+- Grades will be assigned according to point scheme below and computed as a percentage of total possible points
+- Lateness policy: If an urgent and unforseen circumstance comes up and you need an extension to turn in an assignment, please contact Blanca, Erin, and/or Emma as soon as possible. Unless there is an arrangement in place, late assignments will be scored as follows: 
+    - 25% of total score if 1 day late
+    - 50% of total score if 2 days late
+    - 75%  of total score if 3 days late
+    - Assignment will not be graded if 4 or more days late
+- DUE DATE: 10/24/19
+
+
+### Final Project - Meeting Progress
+
+1. What have you learned from the faculty/staff (name, title, division/department) you have already met with to discuss your project? Explain how you have refined the question you are addressing. *(3 points)*
+
+> I have met with Dr. Christina Roberto to discuss the project, and she suggested changing the topic to instead use data from the lab where I work which evaluated the Philadelphia beverage tax. My previous plan was to analyze NHANES data to look at diet quality among people with diet-sensitive chronic diseases. I am not sure of the exact research question I will analyze with the beverage tax data. The data includes information about all beverage sales at chain stores in Philadelphia and Baltimore from 2017-2018, longitudinal food and beverage sales from 600 participants in Philadelphia and Baltimore from 2017-2018, and cross-sectional data from small stores during that time period. I am meeting with Helen Yan and Laura Gibson and Christina Roberto again next week to discuss further. 
+
+
+### Visualization, Machine Learning and Model Evaluation
+
+```{r eval = TRUE, message = FALSE}
+#install.packages("ggdendro")
+#install.packages("Rtsne")
+library(Hmisc)
+library(GGally)
+library(dplyr)
+library(ggdendro)
+library(Rtsne)
+library(devtools)
+library(randomForest)
+library(pROC)
+```
+
+***
+2. There is a simulated dataset [here](https://raw.githubusercontent.com/HimesGroup/BMIN503/master/DataFiles/assignment4_data.txt) of 100 measures taken for 1000 subjects. Read in the data file, and using some of the R functions discussed in class (show your code below!), answer the following questions by inserting code below each bullet to provide the answer directly. *(9 points)*
+
+```{r eval = TRUE, message = FALSE}
+dataCase <- read.delim("https://raw.githubusercontent.com/HimesGroup/BMIN503/master/DataFiles/assignment4_data.txt")
+#using read.delim because the .txt file is tab separated
+table(is.na(dataCase))
+```
+    + How many cases/controls are in the dataset?
+> There are 498 Cases and 502 Controls in the dataset.
+```{r eval = TRUE, message = FALSE}
+summary(dataCase$status)
+```
+    + Use bivariate statistical tests to find out which variables are individually associated with _status_ at a nominally significant level. That is, name and list the variables with p < 0.05, along with their p-values. The variable names should be labelled according to their order in the data (e.g., the first variable can be called "v1"). Among the signficant ones, which would you prioritize for further study? Hint: use a _for loop_ to get the 100 p-values.
+    
+> v1, v22, v23, v44, v50, v62, v65, v67, v79, v80, and v100 are nominally significant at p<0.05. V1, v23, v50, and v100 have p<0.001, v65 and v67 have p<0,01. v22, v44, v62, v79, and v80 have p values between 0.01 and 0.05. Of these, I would prioritize v1, v23, v50, and v100 because they are the most strongly significant and are more likely to remain significant after adjusting the model, whereas v65 and 67 are less significant and v22, v44, v62, v79, and v80 are marginally significant and may not remain significant after further study.
+
+```{r eval = TRUE, message = FALSE}
+for (i in 2:101) {
+  dataColumn <- dataCase[, i]
+  glmStatus <- (summary(glm(dataColumn ~ dataCase$status)))
+  nameCol <- colnames(dataCase[i])
+  pValue <- (glmStatus$coefficients[2,4])
+  if (glmStatus$coefficients[2,4] < 0.05) {
+    print(nameCol)
+    print(pValue)
+  }
+}
+```
+
+    + Create a plot to visualize how the values of the individual variable with lowest p-value differ between cases and controls.
+```{r eval = TRUE, message = FALSE}
+#box plot v1 x status
+
+ggplot(data = dataCase, aes(x = factor(status), y = v1)) +
+  geom_boxplot() +
+  labs(title = "Case/Control Status by variable v1") +
+  labs(x = "case/control status")
+
+```
+
+3. Use hierarchical clustering with the independent variables (i.e. exclude the _status_ variable) to find out whether you can arrive at the _status_ label from the independent variables. Since you know there should be 2 categories, use this information in your analysis. Insert code below each bullet to provide answers. *(9 points)*
+    + Create a dendrogram using `hclust` and use the original _status_ variable to color the leaves.
+```{r eval = TRUE, message = FALSE}
+
+data.hclust <- hclust(dist(dataCase[ , 2:101]), method = "complete") #dist() makes it a distance matrix, calculates distance between items, required instead of a dataframe #Largest distance between members in clusters
+data.dend <- dendro_data(as.dendrogram(data.hclust))
+labels <- label(data.dend)
+
+labels$status <- dataCase$status[as.numeric(levels(labels$label))]
+
+ggplot(segment(data.dend)) +
+    geom_segment(aes(x = x, y = y, xend = xend, yend = yend)) +
+    geom_text(data = labels, aes(label = label, x = x, y = 0, color = status), size = 4)
+
+```
+    + Use a table to show how many cases/controls are properly classified.
+```{r eval = TRUE, message = FALSE}
+caseControlGroup <- cutree(data.hclust, 2)
+table(dataCase$status, caseControlGroup)
+```
+    + In 1-2 sentences describe the relationship between the independent variables and _status_ based on your results.
+
+> The results from this hierarchical clustering analysis show that this model was not effective at grouping cases and controls based on the variables included in the model. Based on this information, there appears to be no relationship between the independent variables and status. The model is likely overfitted with the inclusion of 100 independent variables, such that every observation gets a leaf. 
+
+4. Compare the predictive accuracy of 1) logistic regression and 2) random forest multivariate models of _status_ as outcome while using all other variables simultaneously as predictors. Hint: you can modify the random forest and cross validation code from the practicum files used in class. Insert code below each bullet to provide answers. *(12 points)*
+    + Create a logistic regression model. How many variables are significant at p < 0.05? Store the predicted values of the training data into a variable called glm.pred.
+    
+> v1, v22, v23, v44, v50, v62, v65, v67, v79, v80, and v100 are nominally significant at p<0.05. Please note for below, the model was first ran with "." to include all variables, but the p-values were all non-significant. I then tested the model by adding more and more variables until v100. Up to v99, the model produces the significant variables that I expected from question 2. Once v100 is included, the model no longer produces significant variables. I included both here, but based the glm predictions (glm.pred) on the model with all data. 
+
+```{r eval = TRUE, message = FALSE} 
+glm.model <- glm(status ~ ., data = dataCase, family = binomial(logit))
+summary(glm.model)
+glm.pred.model.2 <- glm(status ~ v1 + v2 + v3 + v4 + v5 + v6 + v7 + v8 + v9 + v10 + v11 + v12 + v13 + v14 + v15 + v16 + v17 + v18 + v19 + v20 + v21 + v22 + v23 + v24 + v25 + v26 + v27 + v28 + v29 + v30 + v31 + v32 + v33 + v34 + v35 + v36 + v37 + v38 + v39 + v40 + v41 + v42 + v43 + v44 + v45 + v46 + v47 + v48 + v49 + v50 + v51 + v52 + v53 + v54 + v55 + v56 + v57 + v58 + v59 + v60 + v61 + v62 + v63 + v64 + v65 + v66 + v67 + v68 + v69 + v70 + v1 + v72 + v73 + v74 + v75 + v76 + v77 + v78 + v79 + v80 + v81 + v82 + v83 + v84 + v85 + v86 + v87 + v88 + v89 + v90 + v91 + v92 + v93 + v94 + v95 + v96 + v97 + v98 + v99, data = dataCase, family = binomial(logit))
+summary(glm.pred.model.2)
+#for some reason, as soon as v100 is included, the model breaks and gives everything a probability of 0.99-1.10. so I did it manually...but not sure whats wrong with it. happens both when i use "." and manually include v100. 
+glm.pred <- predict(glm.model, data = dataCase, type = "response")
+#str(dataCase[,90:101])
+#checked using str() that v100 actually existed, and it looks fine. 
+#glm.pred
+#summary(glm.pred)
+#note to self: AIC = residual deviance adjusted for number of parameters in the model
+```
+    + Create a random forest model. What are the most important predictors according to gini importance scores (i.e. MeanDecreaseGini)? Store the predicted values of the training data into a variable called rf.pred.
+    
+> The most important predictors in order of highest gini importance score are v1 (54.4), v100 (43.8), v23 (42.4), and v50(17.1). 
+
+```{r eval = TRUE, message = FALSE}
+rf.model <- randomForest(status ~ ., data = dataCase, ntree = 100, importance = TRUE)
+rf.model$importance
+rf.pred <- predict(rf.model, data = dataCase, type = "prob")
+```
+    + Obtain 10-fold cross validation classification vectors for each model. Obtain AUC values and make an ROC plot that shows ROC curves corresponding to predictive accuracy using the training data as well as the 10-fold cross-validations. Note that there will be four ROC curves in your plot. What model was better at predicting _status_? Comment on possible model overfitting.
+
+> The logistic regression predictions from the single model and the 10-fold cross validation have the largest AUC of 1.00, indicating that these are likely hugely overfit. The random forest single and cross validated models have more realistic AUCs of 0.91 and 0.93. The random forest model is likely better at predicting status and held up to cross-validation, although it is possibly overfit as well. 
+
+```{r eval = TRUE, warning = FALSE, message = FALSE}
+N = nrow(dataCase)
+K = 10
+set.seed(2442)
+s = sample(1:K, size = N, replace = T) #sampling with replacement (T) (bootstrap), 1-10 (1:K) randomly assigned to a vector that's the size of oroginal dataset (N)
+pred.outputs.rf <- vector(mode = "numeric", length = N) #predicted outputs
+pred.outputs.glm <- vector(mode = "numeric", length = N) #predicted outputs
+obs.outputs <- vector(mode = "numeric", length = N) #observed outputs (only one because obs are the same regardless of model)
+offset <- 0 #offset required to moving through befcause you cycle 10 times (?)
+
+for(i in 1:K){
+  train <- filter(dataCase, s != i)
+  test <- filter(dataCase, s == i)
+  obs.outputs[1:length(s[s == i]) + offset] <- test$status #the observed outcome is what the status was in the test data
+#RF train/test
+  rf <- randomForest(status ~ ., data = train, ntree = 100, importance = TRUE) #rf model on training data
+  rf.pred.curr <- predict(rf, newdata = test, type = "prob") # predict() function predicting rf model from above using test data, saved as rf.pred.curr
+  pred.outputs.rf[1:length(s[s == i]) + offset] <- rf.pred.curr[ , 2] #the var "pred.outputs.rf" with length of the test dataset plus the offset is set to the second column of rf.pred.curr (the prediction of rf from the test data)
+#glm train/test
+  glm <- glm(status ~ ., data = dataCase, family = binomial(logit))
+  glm.pred.curr <- predict(glm, test, type = "response")
+  pred.outputs.glm[1:length(s[s == i]) + offset] <- glm.pred.curr
+  offset <- offset + length(s[s == i]) #the offset is increased with every iteration by length of test data
+}
+
+#auc(roc(obs.outputs, pred.outputs.rf))
+#auc(roc(obs.outputs, pred.outputs.glm))
+#roc(dataCase$status, rf.pred)
+#auc(roc(dataCase$status, glm.pred))
+
+plot.roc(obs.outputs, pred.outputs.rf, col = "darkblue", print.auc = TRUE, print.auc.x = 0)
+plot.roc(obs.outputs, pred.outputs.glm, col = "purple", add = TRUE, print.auc = TRUE, print.auc.x = 0.6)
+plot.roc(dataCase$status, rf.pred[ , 2], col = "blue", add = TRUE, print.auc = TRUE, print.auc.x = 0.3)
+plot.roc(dataCase$status, glm.pred, col = "pink", add = TRUE, AUC = TRUE, print.auc = TRUE, print.auc.x = 0.95)
+legend("bottomright", legend=c("randomforest", "logregression", "randomforest prediction", "logregression prediction"), col=c("darkblue", "purple", "blue", "pink"), lwd=2)
+#str(train) #just making sure the train and test sets looked okay, 895 obs of 101 vars in train and 105 obs of 101 vars in test
+#str(test)
+#v1 + v2 + v3 + v4 + v5 + v6 + v7 + v8 + v9 + v10 + v11 + v12 + v13 + v14 + v15 + v16 + v17 + v18 + v19 + v20 + v21 + v22 + v23 + v24 + v25 + v26 + v27 + v28 + v29 + v30 + v31 + v32 + v33 + v34 + v35 + v36 + v37 + v38 + v39 + v40 + v41 + v42 + v43 + v44 + v45 + v46 + v47 + v48 + v49 + v50 + v51 + v52 + v53 + v54 + v55 + v56 + v57 + v58 + v59 + v60 + v61 + v62 + v63 + v64 + v65 + v66 + v67 + v68 + v69 + v70 + v1 + v72 + v73 + v74 + v75 + v76 + v77 + v78 + v79 + v80 + v81 + v82 + v83 + v84 + v85 + v86 + v87 + v88 + v89 + v90 + v91 + v92 + v93 + v94 + v95 + v96 + v97 + v98 + v99
+```
+    + How do the AUCs for the random forest compare to the internal out-of-bag error rate estimate reported by the randomForest function? Explain how the two measures were obtained. Note that this is a concept question based on previous outputs and no additional code is needed.
+
+> The AUC for the random forest curve is around 0.9044 and the OOB error estimate for the random forest model is around 17%. The internal out of bag error estimate was obtained from the random forest calculation, by measuring the error when the model from the observations selected by the bootstrap aggregation is used to predict those observations not selected. The area under the curve, indicating the proportion that would be predicted correctly, indicates more sensitivity/specificity for the model than the OOB error because it indicates about 10% error, if the two are comparable in that way. 
+
+5. Rather than using all variables, create logistic regression and random forest predictive models using the "best" variables according to each method (i.e. the top-ranked variables according to standard metrics for each test). Insert code below each bullet to provide answers. *(9 points)* 
+    + Compare the top-ranked variables according to 1) p-values from logistic regression tests provided in question 2 and 2) by gini score for random forest from question 4. Are the top variables consistent?
+
+> The variables with the lowest p values (<0.001) in the logistic regression test were v1, v23, v50, and v100. The variables with the highest gini importance scores in the random forest were v1, v23, v50, and v100. These were the same. However, the random forest did not pick up any of the other variables as particularly important, while v65 and v67 had p-values of <0.01 in the regression model. The top variables are consistent, indicating similar performance, although the random forest was more discerning.     
+
+    + Create logistic regression and random forest models using the top variables. For each model, check the predictive accuracy using the training data as well as via 10-fold cross-validation. Report the corresponding AUC and create ROC plots as you did in question 4. How does the predictive accuracy of the models compare to those using the entire dataset obtained in question 4? Explain any differences in a few sentences.
+```{r eval = TRUE, warning = FALSE, message = FALSE}
+glm.best.1 <- glm(status ~ v1 + v23 + v50 + v100 , data = dataCase, family = binomial(logit))
+glm.pred.best <- predict(glm.best.1, data = dataCase, type = "response")
+
+rf.best.1 <- randomForest(status ~ v1 + v23 + v50 + v100, data = dataCase, ntree = 100, importance = TRUE)
+rf.pred.best <- predict(rf.best.1, data = dataCase, type = "prob")
+
+pred.outputs.rf.best <- vector(mode = "numeric", length = N) 
+pred.outputs.glm.best <- vector(mode = "numeric", length = N) 
+obs.outputs.best <- vector(mode = "numeric", length = N)
+offset.best <- 0 
+
+for(i in 1:K){
+  train <- filter(dataCase, s != i)
+  test <- filter(dataCase, s == i)
+  obs.outputs.best[1:length(s[s == i]) + offset.best] <- test$status
+#rf train/test
+  rf.best <- randomForest(status ~ v1 + v23 + v50 + v100, data = train, ntree = 100, importance = TRUE)
+  rf.pred.curr.best <- predict(rf.best, newdata = test, type = "prob")
+  pred.outputs.rf.best[1:length(s[s == i]) + offset.best] <- rf.pred.curr.best[ , 2]
+#glm train/test
+  glm.best <- glm(status ~ v1 + v23 + v50 + v100 , data = dataCase, family = binomial(logit))
+  glm.pred.curr.best <- predict(glm.best, newdata = test, type = "response")
+  pred.outputs.glm.best[1:length(s[s == i]) + offset.best] <- glm.pred.curr.best
+#offset
+  offset.best <- offset.best + length(s[s == i])
+}
+
+#Plotting ROC curves for crossfold validation of random forest prediction and logistic regression prediction and for the single models of random forest and logistic regression with only the variables significant in bivariate analysis. 
+plot.roc(obs.outputs.best, pred.outputs.rf.best, col = "lightblue", print.auc = TRUE, print.auc.x = 0)
+plot.roc(obs.outputs.best, pred.outputs.glm.best, col = "magenta", add = TRUE, print.auc = TRUE, print.auc.x = 0.6)
+plot.roc(dataCase$status, rf.pred.best[ , 2], col = "blue", add = TRUE, print.auc = TRUE, print.auc.x = 0.3)
+plot.roc(dataCase$status, glm.pred.best, col = "pink", add = TRUE, AUC = TRUE, print.auc = TRUE, print.auc.x = 0.95)
+legend("bottomright", legend=c("randomforest", "logregression", "randomforest prediction", "logregression prediction"), col=c("lightblue", "magenta", "blue", "pink"), lwd=2)
+```
+    + What models would be preferable in most situations, those you created in question 4 or 5?
+
+> The models created in question 5 seem preferable in most situations because they are less likely to be overfit, but have a large AUC and the single model and 10-fold cross validation are close. 
+

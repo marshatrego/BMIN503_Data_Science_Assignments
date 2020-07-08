@@ -1,0 +1,136 @@
+---
+title: "Assignment 6"
+author: "Data Science for Biomedical Informatics (BMIN503/EPID600)"
+output:
+  html_document:
+    toc: false 
+    depth: 3 
+    theme: paper 
+    highlight: tango
+---
+***
+
+#### Instructions
+
+- Download the Rmd version of this file
+- Complete the questions below in RStudio using the Rmd file as a template 
+- Replace text in brackets with your answers, making sure you keep executable code in chunks along with its output to answer the questions as appropriate. (There is no need to keep the brackets).
+- Save the Rmd document as Assignment6_*YOUR LAST NAME*.Rmd
+- Create an HTML version using knitr
+- Turn in completed Assignment6_*YOUR LAST NAME*.html file in Canvas under Assignments -> Assignment 6
+- Your assignment **must** be in html format or it will not be graded
+- Grades will be assigned according to point scheme below and computed as a percentage of total possible points
+- Lateness policy: If an urgent and unforseen circumstance comes up and you need an extension to turn in an assignment, please contact Blanca, Erin, and/or Emma as soon as possible. Unless there is an arrangement in place, late assignments will be scored as follows: 
+    - 25% of total score if 1 day late
+    - 50% of total score if 2 days late
+    - 75%  of total score if 3 days late
+    - Assignment will not be graded if 4 or more days late
+- DUE DATE: 11/21/19
+
+
+#### Final Project - Methods/Results Draft and Peer Feedback
+
+1. Using your local forked [Final Project Repo](https://github.com/HimesGroup/BMIN503_Final_Project), complete a draft of the Methods/Results section following the instructions provided in the Rmd file where you drafted the Introduction. You should be using an RStudio Project to pull/push changes as you work. Edit your own GitHub README.md file to describe what your project is about and what files are present in the repository.
+
+> https://github.com/marshatrego/BMIN503_Final_Project
+
+#### Gene Expression
+
+2. Analyse GEO dataset [GSE27973](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE27973) to identify genes that are differentially expressed in airway epithelial cells in response to cigarette smoke extract (CSE) exposure. The procedure you need to follow is similar to that followed in Practicum 17. Specifically,
+    + Download the raw CEL files from GEO, create an expression set, and include a phenotype variable corresponding to `treatment` with four levels as can be inferred from the GEO submission.  (*2 points*)
+```{r eval=TRUE, message=FALSE}
+library(tidyverse)
+library(oligo)
+library(limma)
+library(viridis)
+library(GEOquery)
+library(hgu133plus2.db)
+library(gplots)
+
+getGEOSuppFiles("GSE27973")
+untar("./GSE27973/GSE27973_RAW.tar", exdir = "./GSE27973/data")
+
+celFiles1 <- list.celfiles("./GSE27973/data", full.names = TRUE, listGzipped = TRUE)
+raw.data1 <- read.celfiles(celFiles1)
+pData(raw.data1)
+pData(raw.data1)$status <- c(rep("medium"), 
+                            rep("RV16"), 
+                            rep("CSE"),
+                            rep("RV16CSE"),
+                            rep("medium"), 
+                            rep("RV16"), 
+                            rep("CSE"),
+                            rep("RV16CSE"),
+                            rep("medium"), 
+                            rep("RV16"), 
+                            rep("CSE"),
+                            rep("RV16CSE"),
+                            rep("medium"), 
+                            rep("RV16"), 
+                            rep("CSE"),
+                            rep("RV16CSE"))
+pData(raw.data1)
+```
+    + Look at a boxplot of expression values for each sample and see whether any seem to be outliers. (*2 points*)
+```{r eval=TRUE, message=FALSE}
+boxplot(raw.data1, col = "red", main = "Raw Probe Intensities")
+```
+    + Perform RMA on the samples and create a new intensity boxplot. (*2 points*)
+```{r eval=TRUE, message=FALSE}
+GSE27973.rma <- rma(raw.data1) #robust multiarray averaging
+boxplot(GSE27973.rma, col = "blue", main = "RMA Expression Values")
+```
+    + Perform a differential expression analysis, and report how many probes are significantly differentially expressed between the *CSE* and *medium* samples based on a Benjamini-Hochberg corrected p-value threshold of 0.05. Note: it is OK to do an analysis without taking into account donor status. That is, compare sample expression based on treatment status only. (*3 points*)
+```{r eval=TRUE, message=FALSE}
+design <- model.matrix(~ -1 + factor(GSE27973.rma$status))
+colnames(design) <- levels(factor(GSE27973.rma$status))
+design
+
+fit <- lmFit(GSE27973.rma, design)
+
+GSE27973.contrast <- makeContrasts(CSE = CSE - medium, levels = design) #contrast groups
+fit2 <- contrasts.fit(fit, GSE27973.contrast)
+fit2 <- eBayes(fit2)
+
+cse_results <- topTable(fit2, coef = "CSE", adjust = "BH", num = 200)
+cse_results$ID = row.names(cse_results)
+cse_results$SYMBOL <- lapply(cse_results$ID, function(x) mget(x, env = hgu133plus2SYMBOL, ifnotfound = NA)[[1]])
+cse_results$ID = row.names(cse_results)
+cse_results$SYMBOL <- lapply(cse_results$ID, function(x) mget(x, env = hgu133plus2SYMBOL, ifnotfound = NA)[[1]])
+head(cse_results)
+```
+    + What is the top differentially expressed gene? Create a boxplot of its normalized intensities across **all** treatment groups. How many probes corresponding to this gene are among the top hits? (*3 points*)
+    
+> The top differentially expressed gene is 201468_s_at with the smallest adjusted p-value. There are 6 probes in the top hits. 
+
+```{r eval=TRUE, message=FALSE}
+
+# make a data frame for gene expression of the probe
+df_boxplot = data.frame(
+  expression = exprs(GSE27973.rma)["1556180_at", ],
+  status = GSE27973.rma$status)
+
+ggplot(df_boxplot, aes(x = status, y = expression)) +
+  geom_boxplot(outlier.colour = NA, color = "grey18", fill = "lightgreen") +
+  stat_boxplot(geom = "errorbar", color = "grey18") +
+  geom_jitter(size = 1, position = position_jitter(width = 0.3)) +
+  ggtitle("Expression Values for Probe 1556180_at") +
+  xlab(" ") +
+  ylab("RMA Intensity") +
+  theme_bw() +
+  theme(legend.position = "none")
+```
+    + Create a heatmap using the significantly differentially expressed genes and samples from all conditions. How do the treatment groups cluster? What does this indicate (a qualitative answer is sufficient)? (*3 points*)
+    
+> The treatment groups cluster on one side indicating differential expression. 
+
+```{r eval=TRUE, message=FALSE}
+top.eset <- GSE27973.rma[row.names(exprs(GSE27973.rma)) %in% row.names(cse_results)]
+status.colors <- unlist(lapply(GSE27973.rma$status, function(x){if (x == "medium") "green" else "blue"}))
+
+heatmap.2(exprs(top.eset), col = viridis(256, option = "B"),
+          trace = "none", keysize = 1.5, key.title = NA,
+          ColSideColors = status.colors)
+legend("topright", legend = c("medium", "RV16", "CSE", "RV16CSE"), fill = c("green", "blue")) 
+```
+    

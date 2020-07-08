@@ -1,0 +1,328 @@
+---
+title: "Assignment 5"
+author: "Data Science for Biomedical Informatics (BMIN503/EPID600)"
+output:
+  html_document:
+    toc: false 
+    depth: 3 
+    theme: paper 
+    highlight: tango
+---
+
+```{r global options, eval = TRUE, include = FALSE}
+library(tidyverse)
+library(sf)
+library(tidycensus)
+library(leaflet)
+library(stringr)
+library(ggplot2)
+#census_api_key("619551c47c28d3bdc9f1437e5cdba2fbddc927d3", overwrite = FALSE, install = TRUE)
+
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+``` 
+
+***
+
+#### Instructions
+
+- Download the Rmd version of this file
+- Complete the questions below in RStudio using the Rmd file as a template 
+- Replace text in brackets with your answers, making sure you keep executable code in chunks along with its output to answer the questions as appropriate. (There is no need to keep the brackets).
+- Save the Rmd document as Assignment5_*YOUR LAST NAME*.Rmd
+- Create an HTML version using knitr
+- Turn in completed Assignment5_*YOUR LAST NAME*.html file in Canvas under Assignments -> Assignment 5
+- Your assignment **must** be in html format or it will not be graded
+- Grades will be assigned according to point scheme below and computed as a percentage of total possible points
+- Lateness policy: If an urgent and unforseen circumstance comes up and you need an extension to turn in an assignment, please contact Blanca, Erin, and/or Emma as soon as possible. Unless there is an arrangement in place, late assignments will be scored as follows: 
+    - 25% of total score if 1 day late
+    - 50% of total score if 2 days late
+    - 75%  of total score if 3 days late
+    - Assignment will not be graded if 4 or more days late
+- DUE DATE: 11/7/19
+
+
+#### Final Project - Overview, Introduction, Methods/Results
+
+1. Recall that you forked the [Final Project Repo](https://github.com/HimesGroup/BMIN503_Final_Project) and have downloaded it as a project to your local computer. Write the overview and introduction for your final project. The overview consists of 2-3 sentences summarizing the project and goals. For the introduction, the first paragraph describes the problem addressed, its significance, and some background to motivate the problem. In the second paragraph, explain why your problem is interdisciplinary, what fields can contribute to its understanding, and incorporate background related to what you learned from meeting with faculty/staff. Start working on the Methods/Results section, which consists of code and its output along with text describing what you are doing (Note: we will not check your code now, but we encourage you to have something in place before Assignment 6 is distributed).
+
+> Overview: This project will be an exploratory secondary analysis of factors affecting diabetes control among a nationally representative sample of United States adults from the National Health and Nutrition Examination Survey (NHANES). I will use machine learning methods to identify the most relevant features in the database responsible for type II diabetes control as measured by HbA1c among diagnosed diabetes. 
+Problem addressed, significance, and background:
+Type II diabetes mellitus (T2D) is an endocrine disorder characterized by the body’s inability or reduced ability to metabolize carbohydrates due to impaired insulin response. The prevalence of T2D has increased since the 1990s from around 7% to 12.3% in 2011-2014, mirroring the trend in rising obesity rates (Stokes & Preston, 2017). T2D is a significant contributor to healthcare costs in the United States (Ng, Lee, Toh, & Ko, 2014), and effective management of the condition can help alleviate both direct and indirect costs and reduce associated comorbidity. A central element of diabetes care is glycemic control, or maintaining a balance of insulin with glucose intake and energy expenditure (Cravedi, Ruggenenti, Remuzzi, & Remuzzi, 2014). Hemoglobin A1c (HbA1c) is a long-term measure of glycemic control, indicating a 3-month average of daily blood glucose control (Cravedi et al., 2014). While considered a gold standard of care, achieving targeted HbA1c levels is often difficult to achieve, even with insulin therapy. 
+The National Health and Nutrition Examination Survey (NHANES) is a United States nationally representative survey designed to assess nutritional status of the United States civilian, noninstitutionalized population (US Centers for Disease Control and Prevention & National Center for Health Statistics, 2014). NHANES is a comprehensive survey, including physical examinations, laboratory analyses, questionnaires, and demographic information, and representativeness of the population including minority and underrepresented groups are ensured with weighting and sampling methods (Johnson, Dohrmann, Burt, & Mohadjer, 2014).  NHANES provides a comprehensive database of factors that could affect health and diabetes, specifically, including dietary recalls and HbA1c laboratory results. Type II diabetes mellitus (T2D), in turn, is a diseased affected by a multitude of individual, lifestyle, and medical factors, including diet, genetics, and physical activity. Although the etiology and treatment of diabetes in individuals has been extensively studied, further exploration at the population level in a data set such as NHANES may paint a clearer picture of the complex, interrelated environmental and individual risk factors affecting diabetes management. 
+Kavakiotis et al. (2017), in their systematic review of machine learning and data mining techniques in diabetes research, describe the hope that machine learning of NHANES data and similar data sources could be linked to decision-making support tools in diagnosis and treatment of diabetes. Their 2017 review included only one analysis of NHANES data by Lee and Giraud-Carrier (2013), in which the researchers applied association rule mining and clustering algorithms to explore relationships between responses to health questionnaires and diabetes and hypertension in NHANES. This project will build upon these studies to explore factors predictive of control of diabetes as assessed by HbA1c.
+Why your problem is interdisciplinary, what fields can contribute to its understanding, and incorporate background related to what you learned from meeting with faculty/staff:
+This project will apply principles of biomedical informatics to address the population-level health issue of type II diabetes mellitus. It will incorporate machine learning techniques to explore an integration of medical and social determinants of health that can be achieved through the comprehensive NHANES database. This topic has the potential to inform clinical practitioners and regional and national policy makers as to potential areas to focus resources. I have met with Christina Roberto, who advised me to steer away from my previous idea of looking at diet quality among those with different chronic conditions, as there is insufficient information in this blunt cross-sectional survey to make meaningful conclusions. Thus, I will focus my project on diabetes control specifically, and I will expand my methods to be more exploratory than hypothesis testing. I have discussed the project in brief with the other two faculty/staff, and will get further insight in the next several weeks. 
+Methods: 
+	Dependent variable: HbA1c (diabetes control)
+	Other variables of interest: Food frequency questionnaires will be scored for fruit and vegetable intake and sugar sweetened beverage intake using the scoring algorithm provided by NHANES. Self-reported diet quality will be included as a correlate to food frequency questionnaires. Demographic variables of age, race/ethnicity, sex, income (categorical), etc. will be included. Additional factors to be determined. 
+Sample: I am considering limiting the sample to only those who report having been told by a doctor or other health care provider that they have diabetes. The purpose of this would be to limit the sample to only those who may be actively trying to control their diabetes through glycemic control. Undiagnosed diabetes is estimated to be prevalent, but this population likely differs from those with a diagnosis and, presumably although not definitely, knowledge and motivation to address the condition. Pregnant women will be excluded to exclude gestational diabetes mellitus. 
+
+> References
+Cravedi, P., Ruggenenti, P., Remuzzi, A., & Remuzzi, G. (2014). Chapter 40 - Current Status of Islet Transplantation. In G. Orlando, J. Lerut, S. Soker, & R. J. Stratta (Eds.), Regenerative Medicine Applications in Organ Transplantation (pp. 583-598). Boston: Academic Press.
+Johnson, C. L., Dohrmann, S. M., Burt, V. L., & Mohadjer, L. K. (2014). National Health and Nutrition Examination Survey: Sample design, 2011–2014. Vital Health Statistics, Series 2(162), 1-33. 
+Kavakiotis, I., Tsave, O., Salifoglou, A., Maglaveras, N., Vlahavas, I., & Chouvarda, I. (2017). Machine Learning and Data Mining Methods in Diabetes Research. Computational and Structural Biotechnology Journal, 15, 104-116. doi:https://doi.org/10.1016/j.csbj.2016.12.005
+Lee, J. w., & Giraud-Carrier, C. (2013). Results on mining NHANES data: A case study in evidence-based medicine. Computers in Biology and Medicine, 43(5), 493-503. doi:https://doi.org/10.1016/j.compbiomed.2013.02.018
+Ng, C. S., Lee, J. Y. C., Toh, M. P. H. S., & Ko, Y. (2014). Cost-of-illness studies of diabetes mellitus: A systematic review. Diabetes Research and Clinical Practice, 105(2), 151-163. doi:https://doi.org/10.1016/j.diabres.2014.03.020
+Stokes, A., & Preston, S. H. (2017). The contribution of rising adiposity to the increasing prevalence of diabetes in the United States. Preventive Medicine, 101, 91-95. doi:https://doi.org/10.1016/j.ypmed.2017.05.031
+US Centers for Disease Control and Prevention, & National Center for Health Statistics. (2014). National health and nutrition examination survey (NHANES) data. In. https://wwwn.cdc.gov/nchs/nhanes/Default.aspx: U.S. Department of Health and Human Services.
+
+
+
+
+#### Static Maps
+
+2. Create maps of county-level obesity rate estimates for adults living in the contiguous United States using BRFSS data from 2003 and 2013. The estimates provided have already been age-adjusted using Census population estimates to allow for comparison between counties and across time.
+    + Read in [BRFSS obesity data](https://raw.githubusercontent.com/HimesGroup/BMIN503/master/DataFiles/county_obesity_prevalence.csv) and [county polygons](https://raw.githubusercontent.com/HimesGroup/BMIN503/master/DataFiles/uscounties_2010.rds), naming them `obesity` and `counties`, respectively. Use the base _plot_ function to check that `counties` includes the polygon elements you expect. Hint: reading in an RDS file from a website requires that you run the file through a _decompressor_ before loading it via `readRDS`. R has a built-in decomopressor function called `gzcon`. *(2 points)*
+```{r eval=TRUE, message=FALSE}
+obesity <- read.csv("https://raw.githubusercontent.com/HimesGroup/BMIN503/master/DataFiles/county_obesity_prevalence.csv")
+counties <- readRDS(gzcon(url("https://raw.githubusercontent.com/HimesGroup/BMIN503/master/DataFiles/uscounties_2010.rds")))
+class(counties)
+class(obesity)
+```
+
+```{r eval=TRUE, message = FALSE}
+plot(counties)
+summary(obesity)
+```
+    + What were the 2004 and 2014 obesity rates for Orange County, California? For Orange County, Texas? Show all variables associated with these counties in the BRFSS and county polygons datasets. Aside from county names, what identifiers do these datasets share? *(2 points)*
+    
+> Orange County, CA: 2004 = 18.4%, 2014 = 19.4%. Orange County, TX: 2004 = 25.3%, 2014 = 29.2%. These datasets have the fips code in common, although the fips code is stored as part of the longer geoid along with other unique identifying numbers. 
+
+```{r eval=TRUE, message=FALSE}
+print(obesity[which(obesity$fips.code == 6059), ])
+print(obesity[which(obesity$fips.code == 48361), ])
+print(counties[which(counties$GEO_ID == "0500000US06059"), ])
+print(counties[which(counties$GEO_ID == "0500000US48361"), ])
+
+#print(counties[which(counties$STATE == 6 & counties$COUNTY == 059), ])
+#print(counties[which((6059 %in% counties$GEO_id)), ])
+#print(counties[which((48361 %in% counties$GEO_id)), ])
+```
+    + Merge the two datasets so that `counties` contains state names and obesity rates for 2004 and 2014. *(3 points)*
+```{r eval=TRUE, message=FALSE}
+class(counties$GEO_ID)
+class(obesity$fips.code)
+#counties <- mutate(counties, GEO_ID2 = as.character(str_sub(GEO_ID, start= -5)))
+#different lengths for state code so last 5 of geoid does not match for states with 1 digit code. using paste() with state and county instead. 
+counties <- mutate(counties, GEO_ID2 = paste(STATE, COUNTY, sep = ""))
+
+obesity <- mutate(obesity, GEO_ID2 = as.character(fips.code))
+class(counties$GEO_ID2)
+class(obesity$GEO_ID2)
+counties2 <- inner_join(by = "GEO_ID2", counties, obesity)
+head(counties2)
+```
+    + For each year (i.e., 2004 and 2014), create a static choropleth map of United States county-level obesity rates using _ggplot2_. 
+    + Add a title with `ggtitle`, 
+    + remove county borders with `lwd=0` in the `geom_sf` call, and 
+    + incorporate custom theme elements with the user-created `my_theme()` function. 
+    + Some code to get you started with these maps is offered below. Feel free to change plot aesthetics or choose a different color palette. *(4 points)*
+    + How did adult obesity rates change between 2004 and 2014? (Qualitative answer is sufficient!) *(2 points)*
+    
+> In general, adult obesity rates increased over the United States between 2004 and 2014. 
+    
+```{r eval = TRUE, message = FALSE}
+library(RColorBrewer)
+library(leaflet)
+class(counties2$age.adjusted.percent.2004)
+class(counties2$age.adjusted.percent.2014)
+counties2[, c(11:12)] <- sapply(counties2[, c(11:12)], function(x) as.numeric(levels(x)[x]))
+class(counties2$age.adjusted.percent.2004)
+class(counties2$age.adjusted.percent.2014)
+# Use a fixed color scale to more easily compare obesity rates between maps 
+prev_min <- min(counties2$age.adjusted.percent.2004, na.rm=TRUE)
+prev_max <- max(counties2$age.adjusted.percent.2014, na.rm=TRUE)
+
+
+
+my_theme <- function() {
+  theme_minimal() +                                  
+  theme(axis.line = element_blank(),                 
+        axis.text = element_blank(),                 
+        axis.title = element_blank(),
+        panel.grid = element_line(color = "white"),  
+        legend.key.size = unit(0.8, "cm"),          
+        legend.text = element_text(size = 16),       
+        legend.title = element_text(size = 16),
+        plot.title = element_text(size = 22))      
+}
+
+myPalette <- colorRampPalette(brewer.pal(9, "RdPu"))
+
+ggplot() +
+  geom_sf(data=counties2, aes(fill = counties2$age.adjusted.percent.2004)) +
+  scale_fill_gradientn(name = "Obesity rate (%)", colours = myPalette(100), limit = range(prev_min, prev_max)) +
+  my_theme() + 
+  ggtitle("2004 US County Obesity Rates")
+ggplot() +
+  geom_sf(data=counties2, aes(fill = counties2$age.adjusted.percent.2014)) +
+  scale_fill_gradientn(name = "Obesity rate (%)", colours = myPalette(100), limit = range(prev_min, prev_max)) +
+  my_theme() + 
+  ggtitle("2014 US County Obesity Rates")
+
+```
+
+#### Interactive Maps
+
+3. Create an interactive map to visualize the change in adult obesity rates for all counties in the contiguous United States between 2004 and 2014.
+    + Create a new variable in `counties` that tracks the _change_ in obesity rate for each county between 2004 and 2014. Be sure to code this variable so that a positive value indicates an increase in the prevalence of obesity. *(1 point)*
+```{r eval=TRUE, message=FALSE}
+counties2 <- mutate(counties2, change = (age.adjusted.percent.2014-age.adjusted.percent.2004))
+class(counties2$change)
+```
+  + Create an interactive choropleth map using the _leaflet_ library to visualize changes in county-level obesity rates between 2004 and 2014. Be sure to include a legend and scalebar for your map. The popup message should include the county name, state name, and change in obesity rate for the selected county. For example, the popup message for Philadelphia, Pennsylvania should read:
+    > Philadelphia County, Pennsylvania
+    > Change in obesity rate (2004-2014): 
+    
+    Hint: you can use the _leaflet_ code from the practicum as a starting point. *(5 points)*
+
+```{r eval = TRUE, message = FALSE}
+
+library(leaflet)
+
+# Pop-up message
+pu_message <- paste0(counties2$county, ", ", counties2$state,  # paste0 to append tract name with other relevant text 
+                     "<br>Change in obesity rate (2004-2014): ",       # <br> forces new line
+                     # use round function to round continuous poverty rate to one decimal point
+                     round(counties2$change, 1), "%")
+
+# Bins continuous variables into an ordinal color scale appropriate for our data
+pal_fun <- colorNumeric("BuPu", NULL) 
+
+# Basic leaflet map
+leaflet(counties2) %>%
+  addPolygons(stroke = FALSE,                        # remove polygon borders
+              fillColor = ~pal_fun(change),
+              fillOpacity = 0.5, smoothFactor = 0.5, # increase opacity and resolution
+              popup = pu_message) %>%               # add a popup message
+  addTiles() %>%                                         # default basemap
+  addProviderTiles(providers$CartoDB.Positron) %>%  # add third party provider tilex
+  addScaleBar() %>%
+    addLegend("bottomright",                           
+            pal=pal_fun,                             # palette function
+            values=~change,                 # variable to be passed to palette function
+            title = 'percent change in obesity rate',                  # legend title
+            opacity = 1)  
+
+```
+
+4. Create a choropleth map of a county-aggregated variable of your choice from the American Community Survey (ACS) 5-year estimates for 2012-2016. 
+  + Write a line of code to show how you could use a _tidycensus_ command to view variables from the ACS 5-year estimates for 2012-2016. Store the results as an object named `vars`. You do not need to show a preview of `vars`. *(1 point)*
+```{r eval=TRUE, message=FALSE}
+vars <- load_variables(dataset = "acs5", year = 2016)
+```
+  + Use `get_acs` from _tidycensus_ to query a variable of your choice from the ACS 5-year estimates for 2012-2016 at the county level. For percentages, be sure to obtain both an estimate and a total. For full points, assign the ACS data you obtained to a data frame named `acs.data.` Make sure each county is represented by no more than a single row of `acs.data` and each column of `acs.data` contains no more than a single variable and has a meaningful name. We are only interested in mapping the estimate, so you can remove information about margin of error. Show the first six rows of `acs.data`. It is up to you which variable you would like to map. Possible options include:
+      + Poverty rate (estimate: B17010_002, total: B17010_001)
+      + Median household income (B19013_001)
+      + Median house value (B25077_001) *(4 points)* 
+```{r eval=TRUE, message=FALSE}
+
+snap <- get_acs(geography = "county",         # query data at the tract level 
+                   year = 2016,                 # end year (these will give us ACS 5-year estimates for 2011-2016)
+                   variables = c("B22002_002",  # number of families receiving food stamps/SNAP benefits
+                                 "B22002_001",
+                                 "B17010_002",  # number of families falling below the poverty threshold
+                                 "B17010_001")) # total number of families for SNAP benefits status was determined
+                  
+head(snap)
+
+percentSnap <- snap %>%
+  group_by(GEOID) %>%  # return only one row per GEOID
+  mutate(snap_fam = estimate[variable == "B22002_002"],  # extract and rename number of families receiving SNAP benefits 
+         tot_fam = estimate[variable == "B22002_001"], # extract and rename total number of families
+         percent_snap = (snap_fam/tot_fam)*100,
+         pov_fam = estimate[variable == "B17010_002"],  # extract and rename number of families in poverty 
+         tot_fam2 = estimate[variable == "B17010_001"],  # extract and rename total number of families
+         percent_poverty = (pov_fam/tot_fam2)*100,
+         snap_pov_dif = percent_poverty-percent_snap) %>%   # multiply by 100 to get rate as a percentage
+  select(GEOID, NAME, snap_fam, tot_fam, percent_snap, pov_fam, tot_fam2, percent_poverty, snap_pov_dif) 
+
+head(percentSnap)
+
+
+```
+        
+
+  + Merge `counties` with `acs.data` so that `counties` contains the ACS variables you have chosen to map. Show the first six rows of `counties`. *(2 points)*
+```{r eval=TRUE, message=FALSE}
+counties <- mutate(counties, GEO_ID2 = as.integer(paste(STATE, COUNTY, sep = ""))) #making GEO_ID2 integer to match class of other GEO_ID2
+percentSnap <- mutate(percentSnap, GEO_ID2 = as.integer(GEOID)) #making GEO_ID2 integer dropped the leading zeroes
+class(counties$GEO_ID2)
+class(percentSnap$GEO_ID2)
+countiesSnap <- inner_join(by = "GEO_ID2", counties, percentSnap)
+head(countiesSnap)
+```
+  + Make an interactive map with _leaflet_. Be sure to include a popup message, legend, and scalebar. An example palette function has been provided for you, but feel free to choose a different color palette. For the popup message, be sure to label "$" or "%" as necessary. *(4 points)*
+```{r eval=TRUE, message=FALSE}
+# Pop-up message
+puMessage <- paste0(countiesSnap$NAME.y,  # paste0 to append tract name with other relevant text 
+                     "<br>Percent of familes collecting SNAP benefits (2015-16): ",       # <br> forces new line
+                     # use round function to round continuous poverty rate to one decimal point
+                     round(countiesSnap$percent_snap, 1), "%")
+puMessage2 <- paste0(countiesSnap$NAME.y,  # paste0 to append tract name with other relevant text 
+                     "<br>Percent poverty (2015-16): ",       # <br> forces new line
+                     # use round function to round continuous poverty rate to one decimal point
+                     round(countiesSnap$percent_poverty, 1), "%")
+puMessage3 <- paste0(countiesSnap$NAME.y,  # paste0 to append tract name with other relevant text 
+                     "<br>Difference (2015-16): ",       # <br> forces new line
+                     # use round function to round continuous poverty rate to one decimal point
+                     round(countiesSnap$snap_pov_dif, 1), "%")
+
+display.brewer.all(colorblindFriendly = TRUE)
+# Bins continuous variables into an ordinal color scale appropriate for our data
+pallet <- colorNumeric("PuRd", NULL) 
+pallet2 <- colorNumeric("PRGn", NULL) 
+
+# map of snap benefits
+leaflet(countiesSnap) %>%
+  addPolygons(stroke = FALSE,                        # remove polygon borders
+              fillColor = ~pallet(percent_snap),
+              fillOpacity = 0.5, smoothFactor = 0.5, # increase opacity and resolution
+              popup = puMessage) %>%               # add a popup message
+  addTiles() %>%                                         # default basemap
+  addProviderTiles(providers$CartoDB.Positron) %>%  # add third party provider tilex
+  addScaleBar() %>%
+    addLegend("bottomright",                           
+            pal=pallet,                             # palette function
+            values=~percent_snap,                 # variable to be passed to palette function
+            title = 'SNAP benefits rate',                  # legend title
+            opacity = 1) 
+
+#map for poverty to compare rates of poverty with snap benefits
+leaflet(countiesSnap) %>%
+  addPolygons(stroke = FALSE,                        # remove polygon borders
+              fillColor = ~pallet(percent_poverty),
+              fillOpacity = 0.5, smoothFactor = 0.5, # increase opacity and resolution
+              popup = puMessage2) %>%               # add a popup message
+  addTiles() %>%                                         # default basemap
+  addProviderTiles(providers$CartoDB.Positron) %>%  # add third party provider tilex
+  addScaleBar() %>%
+    addLegend("bottomright",                           
+            pal=pallet,                             # palette function
+            values=~percent_poverty,                 # variable to be passed to palette function
+            title = 'Poverty rate',                  # legend title
+            opacity = 1) 
+
+```
+
+```{r, eval = TRUE, message = FALSE}
+#map for difference between snap and poverty rates
+leaflet(countiesSnap) %>%
+  addPolygons(stroke = FALSE,                        # remove polygon borders
+              fillColor = ~pallet2(snap_pov_dif),
+              fillOpacity = 0.5, smoothFactor = 0.5, # increase opacity and resolution
+              popup = puMessage3) %>%               # add a popup message
+  addTiles() %>%                                         # default basemap
+  addProviderTiles(providers$CartoDB.Positron) %>%  # add third party provider tilex
+  addScaleBar() %>%
+    addLegend("bottomright",                           
+            pal=pallet2,                             # palette function
+            values=~snap_pov_dif,                 # variable to be passed to palette function
+            title = 'difference povverty-snap',                  # legend title
+            opacity = 1) 
+```
+  + Describe in 1-2 sentences the geographic distribution of your chosen variable across the United States. Where is this rate/value the highest? *(1 point)*
+
+> Rates of families receiving SNAP/food stamp benefits in the past 12 months are higher in the south, in Mississipi, Alabama, Georgia, and up through North Carolina, although not all counties have a high percentage of SNAP recipients. There are also large proportions of the population that receive SNAP benefits in Kentucky, with 45.3% of those surveyed receiving SNAP benefits in Owsley County, Kentucky. There are larger proportions of the population who receive SNAP benefits along the southern border of Texas and New Mexico, as well as some darker areas on the map in the northwest and northeast and the Dakotas. Predictably, the rates of SNAP benefit recipients mirror the trends of poverty accross the country. However, the two numbers don't exactly follow the same trends, perhaps due to differences in state laws and local economies and cultures, as seen by the third map illustrating the difference between the SNAP benefit rate and the poverty rate, where purple indicates a higher percentage of people collecting SNAP than under the poverty line and green indicating a higher percentage of people in poverty than collecting SNAP benefits. Green areas may indicate places where SNAP benefits are inaccessible to those who may need them. 
+    
+    

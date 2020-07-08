@@ -1,0 +1,61 @@
+---
+title: 'Assignment 1'
+author: "Data Science for Biomedical Informatics (BMIN503/EPID600)"
+output:
+  html_document:
+    toc: false 
+    depth: 3 
+    theme: paper 
+    highlight: tango
+---
+    
+```{r set-options, echo=FALSE, cache=FALSE}
+options(width = 400)
+```    
+***
+
+### Instructions
+- Download the Rmd version of this file
+- Complete the questions below in RStudio using the Rmd file as a template 
+- Replace text in brackets with your answers. Do not keep the brackets.
+- Save the Rmd document as Assignment1_*YOUR LAST NAME*.Rmd
+- Create an HTML version using knitr
+- Turn in completed Assignment1_*YOUR LAST NAME*.html file in Canvas under Assignments -> Assignment 1
+- Your assignment **must** be in html format or it will not be graded
+- Grades will be assigned according to point scheme below and computed as a percentage of total possible points
+- Lateness policy: If an urgent and unforseen circumstance comes up and you need an extension to turn in an assignment, please contact Blanca, Erin, and/or Emma as soon as possible. Unless there is an arrangement in place, late assignments will be scored as follows: 
+    - 25% of total score if 1 day late
+    - 50% of total score if 2 days late
+    - 75%  of total score if 3 days late
+    - Assignment will not be graded if 4 or more days late
+- DUE DATE: 9/5/19 11:59pm
+
+
+### Questions
+
+1) Provide your name. *(1 point)* 
+
+    Marsha Trego
+
+2) Provide the graduate or educational program at Penn that you are part of. *(1 point)* 
+
+    Biomedical Informatics Certificate Program
+
+3) Describe what research topic(s) interest you using 2-3 sentences. *(2 points)* 
+
+    My research interests are public health nutrition, obesity prevention, diet for chronic disease prevention and management, and the food environment. Outside of nutrition research, I am interested in topics in women's health and global health equity and development. I currently work in the Psychology of Eating and Consumer Health Lab at Penn where my main project is a randomized controlled  trial of behavioral economics interventions to promote healthy food choices at a food pantry.
+
+4) What are you most interested in learning during this course? *(2 points)* 
+
+    I am most interested in machine learning, data visualization, types of data that are available for our projects/future research, and possible career paths using biomedical informatics (e.g. where can I go next with an MPH and some data science skills). I am looking forward to the microbiome class because I find this field very interesting, especially as it relates to public health. I am also looking forward to the machine learning classes because I am a little intimidated by machine learning but excited to learn more.
+
+5) Provide a direct link in your html file to your GitHub account, such that clicking on your GitHub username will result in opening of your GitHub account. *(2 points)* 
+
+    [marshatrego](https://github.com/marshatrego)
+
+
+
+
+
+
+
